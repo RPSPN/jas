@@ -2,10 +2,12 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 import os
-import pytz # Nécessaire pour l'heure de Montréal
+import pytz
+import json  # <--- NOUVEL IMPORT NÉCESSAIRE
 
 # --- CONFIGURATION INITIALE ---
 FICHIER_CSV = "distribution_alimentaire.csv"
+FICHIER_CONFIG = "config_active.json" # <--- FICHIER POUR GARDER LA MÉMOIRE
 MOT_DE_PASSE_MAITRE = "admin123"
 
 LISTE_ITEMS_PREDEFINIS = [
@@ -15,17 +17,24 @@ LISTE_ITEMS_PREDEFINIS = [
     "Chips", "Céréales", "Extra"
 ]
 
-# Initialisation de l'état de l'application
-if 'config_du_jour' not in st.session_state:
-    st.session_state.config_du_jour = {}
-if 'est_connecte_maitre' not in st.session_state:
-    st.session_state.est_connecte_maitre = False
-
 # --- FONCTIONS UTILITAIRES ---
 
+def charger_config_disque():
+    """Essaie de charger la configuration depuis le fichier JSON."""
+    if os.path.exists(FICHIER_CONFIG):
+        try:
+            with open(FICHIER_CONFIG, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except:
+            return {}
+    return {}
+
+def sauvegarder_config_disque(config):
+    """Sauvegarde la configuration actuelle dans un fichier JSON."""
+    with open(FICHIER_CONFIG, 'w', encoding='utf-8') as f:
+        json.dump(config, f, ensure_ascii=False, indent=4)
+
 def sauvegarder_transaction(dossier, nb_membres, items_donnes):
-    """Sauvegarde les données avec l'heure de Montréal."""
-    # Définir le fuseau horaire de Montréal
     tz_mtl = pytz.timezone('America/Montreal')
     date_heure = datetime.now(tz_mtl).strftime("%Y-%m-%d %H:%M:%S")
     
@@ -47,6 +56,14 @@ def charger_donnees():
     if os.path.isfile(FICHIER_CSV):
         return pd.read_csv(FICHIER_CSV, sep=';', encoding='utf-8-sig')
     return pd.DataFrame()
+
+# --- INITIALISATION STATE ---
+# On charge la config du disque au démarrage si le State est vide
+if 'config_du_jour' not in st.session_state:
+    st.session_state.config_du_jour = charger_config_disque()
+
+if 'est_connecte_maitre' not in st.session_state:
+    st.session_state.est_connecte_maitre = False
 
 # --- INTERFACE UTILISATEUR ---
 
@@ -76,10 +93,13 @@ if choix_page == "Utilisateur Maître (Config)":
         st.markdown("---")
         st.subheader("1. Configuration de la journée")
         
+        # On pré-remplit avec ce qui est en mémoire (fichier JSON chargé)
+        items_actuels = list(st.session_state.config_du_jour.keys())
+        
         items_du_jour = st.multiselect(
             "Quels items sont disponibles aujourd'hui ?",
             LISTE_ITEMS_PREDEFINIS,
-            default=list(st.session_state.config_du_jour.keys())
+            default=items_actuels
         )
 
         config_temp = {}
@@ -94,6 +114,7 @@ if choix_page == "Utilisateur Maître (Config)":
 
             for item in items_du_jour:
                 c1, c2 = st.columns(2)
+                # On récupère les valeurs existantes
                 val_old_p = st.session_state.config_du_jour.get(item, {}).get("small", 1)
                 val_old_g = st.session_state.config_du_jour.get(item, {}).get("large", 2)
 
@@ -106,7 +127,8 @@ if choix_page == "Utilisateur Maître (Config)":
 
             if st.button("💾 Sauvegarder la configuration", type="primary"):
                 st.session_state.config_du_jour = config_temp
-                st.success("Configuration mise à jour !")
+                sauvegarder_config_disque(config_temp) # <--- ON SAUVEGARDE SUR LE DISQUE
+                st.success("Configuration mise à jour et sauvegardée en mémoire !")
 
         st.markdown("---")
         st.subheader("2. Rapports")
@@ -128,35 +150,28 @@ elif choix_page == "Agent (Distribution)":
     if not st.session_state.config_du_jour:
         st.warning("⚠️ L'utilisateur maître n'a pas encore configuré la liste.")
     else:
-        # --- MODIFICATION IMPORTANTE ---
-        # On place le nombre de membres HORS du formulaire pour que la mise à jour soit instantanée.
         st.info("Étape 1 : Informations Famille")
         col_famille, col_vide = st.columns([1, 1])
         with col_famille:
-            # Changer ce nombre mettra à jour la liste en dessous immédiatement
             nb_famille = st.number_input("Nombre de membres", min_value=1, value=1)
 
-        # Calcul dynamique immédiat
         type_famille = "small" if nb_famille <= 6 else "large"
         
         st.markdown("---")
         st.info(f"Étape 2 : Remplissage du Panier (Mode : {'Grande Famille' if type_famille == 'large' else 'Petite Famille'})")
 
-        # Le reste est dans un formulaire pour grouper l'envoi
         with st.form("formulaire_panier", clear_on_submit=True):
             dossier = st.text_input("Numéro de dossier bénéficiaire")
             
             st.markdown("### Liste des items à donner")
             items_selectionnes_dans_form = []
 
-            # Affichage dynamique basé sur le nb_famille externe
             for item, quants in st.session_state.config_du_jour.items():
                 quantite = quants[type_famille]
                 
                 if quantite > 0:
                     col_check, col_text = st.columns([0.1, 0.9])
                     with col_check:
-                        # Value=False pour que ce soit décoché par défaut
                         coche = st.checkbox("Ajout", value=False, key=f"check_{item}", label_visibility="collapsed")
                     with col_text:
                         st.write(f"**{item}** : {quantite} unité(s)")
