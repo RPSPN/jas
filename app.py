@@ -12,9 +12,9 @@ MOT_DE_PASSE_MAITRE = "admin123"
 
 LISTE_ITEMS_PREDEFINIS = [
     "Lait", "Oranges", "Huile", "Café", "Pâtes", 
-    "Riz", "Conserves", "Pain", "Oeufs", "Beurre", 
-    "Légumes frais", "Viande", "Savon", "Dentifrice",
-    "Couches", "Céréales", "Jus"
+    "Riz", "Conserves", "Pain", "Oeufs", "Oignons", 
+    "Carottes", "Poulet", "Boeuf", "Lentilles",
+    "Chips", "Céréales", "Extra"
 ]
 
 # --- FONCTIONS UTILITAIRES ---
