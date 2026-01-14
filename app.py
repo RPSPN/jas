@@ -11,10 +11,7 @@ FICHIER_CONFIG = "config_active.json"
 MOT_DE_PASSE_MAITRE = "admin123"
 
 LISTE_ITEMS_PREDEFINIS = [
-    "Lait", "Oranges", "Huile", "Café", "Pâtes", 
-    "Riz", "Conserves", "Pain", "Oeufs", "Oignons", 
-    "Carottes", "Poulet", "Boeuf", "Lentilles",
-    "Chips", "Céréales", "Extra"
+    "Oranges", "Pommes", "Patates", "Onions", "Carottes", "Legumes (conserve)", "Thon (conserve)", "Huile", "Chips", "Riz", "Pates", "Biscuits", "Lait", "Oeufs", "Tofu", "Sauce Tomate (conserve)", "Soupe (conserve)", "Fruits (conserve)", "Café", "Base à soupe", "Poulet (congelé)", "Boeuf (congelé)", "Porc (congelé)", "Poisson (congelé)", "Viande Autres (congelé)", "Bagels", "Quinoa (pour Végé)", "Pois chiches (pour Végé)", "Lentilles (pour Végé)", "Extra"
 ]
 
 # --- FONCTIONS UTILITAIRES ---
