@@ -3,24 +3,23 @@ import pandas as pd
 from datetime import datetime
 import os
 import pytz
-import json  # <--- NOUVEL IMPORT NÉCESSAIRE
+import json
 
 # --- CONFIGURATION INITIALE ---
 FICHIER_CSV = "distribution_alimentaire.csv"
-FICHIER_CONFIG = "config_active.json" # <--- FICHIER POUR GARDER LA MÉMOIRE
+FICHIER_CONFIG = "config_active.json"
 MOT_DE_PASSE_MAITRE = "admin123"
 
 LISTE_ITEMS_PREDEFINIS = [
     "Lait", "Oranges", "Huile", "Café", "Pâtes", 
-    "Riz", "Conserves", "Pain", "Oeufs", "Oignons", 
-    "Carottes", "Poulet", "Boeuf", "Lentilles",
-    "Chips", "Céréales", "Extra"
+    "Riz", "Conserves", "Pain", "Oeufs", "Beurre", 
+    "Légumes frais", "Viande", "Savon", "Dentifrice",
+    "Couches", "Céréales", "Jus"
 ]
 
 # --- FONCTIONS UTILITAIRES ---
 
 def charger_config_disque():
-    """Essaie de charger la configuration depuis le fichier JSON."""
     if os.path.exists(FICHIER_CONFIG):
         try:
             with open(FICHIER_CONFIG, 'r', encoding='utf-8') as f:
@@ -30,7 +29,6 @@ def charger_config_disque():
     return {}
 
 def sauvegarder_config_disque(config):
-    """Sauvegarde la configuration actuelle dans un fichier JSON."""
     with open(FICHIER_CONFIG, 'w', encoding='utf-8') as f:
         json.dump(config, f, ensure_ascii=False, indent=4)
 
@@ -57,8 +55,12 @@ def charger_donnees():
         return pd.read_csv(FICHIER_CSV, sep=';', encoding='utf-8-sig')
     return pd.DataFrame()
 
+def effacer_donnees():
+    """Supprime le fichier CSV."""
+    if os.path.exists(FICHIER_CSV):
+        os.remove(FICHIER_CSV)
+
 # --- INITIALISATION STATE ---
-# On charge la config du disque au démarrage si le State est vide
 if 'config_du_jour' not in st.session_state:
     st.session_state.config_du_jour = charger_config_disque()
 
@@ -93,7 +95,6 @@ if choix_page == "Utilisateur Maître (Config)":
         st.markdown("---")
         st.subheader("1. Configuration de la journée")
         
-        # On pré-remplit avec ce qui est en mémoire (fichier JSON chargé)
         items_actuels = list(st.session_state.config_du_jour.keys())
         
         items_du_jour = st.multiselect(
@@ -114,7 +115,6 @@ if choix_page == "Utilisateur Maître (Config)":
 
             for item in items_du_jour:
                 c1, c2 = st.columns(2)
-                # On récupère les valeurs existantes
                 val_old_p = st.session_state.config_du_jour.get(item, {}).get("small", 1)
                 val_old_g = st.session_state.config_du_jour.get(item, {}).get("large", 2)
 
@@ -127,21 +127,34 @@ if choix_page == "Utilisateur Maître (Config)":
 
             if st.button("💾 Sauvegarder la configuration", type="primary"):
                 st.session_state.config_du_jour = config_temp
-                sauvegarder_config_disque(config_temp) # <--- ON SAUVEGARDE SUR LE DISQUE
+                sauvegarder_config_disque(config_temp)
                 st.success("Configuration mise à jour et sauvegardée en mémoire !")
 
         st.markdown("---")
-        st.subheader("2. Rapports")
+        st.subheader("2. Rapports & Nettoyage")
         
         df = charger_donnees()
         if not df.empty:
             st.write(f"Total des paniers distribués : **{len(df)}**")
+            
+            # Bouton de téléchargement
             st.download_button(
                 label="📥 Télécharger le fichier CSV complet",
                 data=df.to_csv(index=False, sep=';', encoding='utf-8-sig').encode('utf-8-sig'),
                 file_name=f"rapport_{datetime.now(pytz.timezone('America/Montreal')).strftime('%Y-%m-%d')}.csv",
                 mime="text/csv"
             )
+            
+            st.markdown("---")
+            st.markdown("### ⚠️ Zone de Danger")
+            # Protection contre l'effacement accidentel
+            if st.checkbox("Je confirme vouloir effacer TOUTES les données enregistrées", key="confirm_delete"):
+                if st.button("🗑️ Effacer définitivement les données", type="primary"):
+                    effacer_donnees()
+                    st.success("Toutes les données ont été effacées.")
+                    st.rerun()
+        else:
+            st.info("Aucune donnée enregistrée pour le moment.")
 
 # --- PAGE AGENT ---
 elif choix_page == "Agent (Distribution)":
